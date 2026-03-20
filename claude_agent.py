@@ -1,35 +1,47 @@
+"""
+Claude Agent for Preview Mode - Makes changes but does NOT auto-deploy.
+The user will review changes in live preview before deploying manually.
+"""
 import asyncio
 import json
 import time
-from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, ToolUseBlock, TextBlock, ResultMessage, HookMatcher
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, ToolUseBlock, TextBlock, ResultMessage, HookMatcher, create_sdk_mcp_server, tool
+import subprocess
 import os
 
 _t0 = time.time()
 
 async def _on_post_tool_use(input_data: dict, tool_use_id: str | None = None, context: dict | None = None) -> dict:
     """Log tool results after execution."""
-    tool = input_data.get("tool_name", "?")
+    tool_name = input_data.get("tool_name", "?")
     response = input_data.get("tool_response", "")
     output = str(response)[:1000] if response else ""
     elapsed = round(time.time() - _t0, 1)
-    print(json.dumps({"type": "tool_result", "tool": tool, "output": output, "t": elapsed}), flush=True)
+    print(json.dumps({"type": "tool_result", "tool": tool_name, "output": output, "t": elapsed}), flush=True)
     return {"continue_": True}
 
-# Environment-specific configuration
-LA_API_URL = os.getenv("LA_API_URL", "https://my.living-apps.de/rest")
-LA_FRONTEND_URL = os.getenv("LA_FRONTEND_URL", "https://my.living-apps.de")
 
 async def main():
-    # Skills and CLAUDE.md are loaded automatically by Claude SDK from cwd
-    # No manual instruction loading needed - the SDK reads:
-    # - /home/user/app/CLAUDE.md (copied from SANDBOX_PROMPT.md)
-    # - /home/user/app/.claude/skills/ (copied from sandbox_skills/)
+    # In preview mode, we provide a dummy deploy tool that just informs the user
+    @tool("deploy_to_github",
+          "In Preview-Mode nicht verfügbar. Der User wird nach der Live-Preview manuell deployen.",
+          {})
+    async def deploy_to_github_disabled(args):
+        """Disabled in preview mode - inform the agent"""
+        return {
+            "content": [{
+                "type": "text", 
+                "text": "⚠️ PREVIEW MODE: Deploy ist deaktiviert. Der User wird die Änderungen erst in der Live-Preview testen und dann manuell deployen. Deine Änderungen sind gespeichert."
+            }]
+        }
 
-    # Deployment is handled by the service (S3 upload + git push)
-    # No deploy tool needed — agent just builds, service deploys
+    deployment_server = create_sdk_mcp_server(
+        name="deployment",
+        version="1.0.0",
+        tools=[deploy_to_github_disabled]
+    )
 
-    # Optionen konfigurieren
-    # setting_sources=["project"] is REQUIRED to load CLAUDE.md and .claude/skills/ from cwd
+    # Options - LIVE PREVIEW MODE: Accept edits automatically for instant writes!
     options = ClaudeAgentOptions(
         hooks={
             # Log tool outputs (e.g. Bash stdout, Read contents) to container logs
@@ -52,87 +64,96 @@ async def main():
                 "- Read .scaffold_context FIRST to understand all generated files\n"
                 "- useDashboardData.ts, enriched.ts, enrich.ts, formatters.ts, ai.ts, chat-context.ts, ChatWidget.tsx: NEVER touch — use as-is\n"
                 "- src/config/ai-features.ts: MAY edit — set AI_PHOTO_SCAN['Entity'] = true to enable photo scan in dialogs\n"
-                "- Rules of Hooks: ALL hooks (useState, useEffect, useMemo, useCallback) MUST be BEFORE any early returns (loading/error). Never place a hook after 'if (loading) return' or 'if (error) return'.\n"
                 "- Dashboard is the PRIMARY WORKSPACE — build interactive domain-specific UI, not an info page\n"
                 "- ALWAYS reuse pre-generated {Entity}Dialog from '@/components/dialogs/{Entity}Dialog' for create/edit forms in the dashboard — never build custom forms\n"
                 "- NEVER use TodoWrite — no task lists, no planning, just implement directly"
             ),
         },
-        setting_sources=["project"],  # Required: loads CLAUDE.md and .claude/skills/
-        permission_mode="bypassPermissions",
+        setting_sources=["project"],
+        mcp_servers={"deploy_tools": deployment_server},
+        permission_mode="bypassPermissions",  # Bypass all checks - instant writes for live preview!
+        allowed_tools=["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Task"],
         cwd="/home/user/app",
-        model="claude-sonnet-4-6", # "claude-sonnet-4-5-20250929" "claude-opus-4-5-20251101"
+        model="claude-sonnet-4-6"#"claude-opus-4-6",
     )
 
-    # Session-Resume Unterstützung
+    # Session-Resume support
     resume_session_id = os.getenv('RESUME_SESSION_ID')
     if resume_session_id:
         options.resume = resume_session_id
-        print(f"[LILO] Resuming session: {resume_session_id}")
+        print(f"[LILO-PREVIEW] Resuming session: {resume_session_id}")
 
     # User Prompt - prefer file over env var (handles special chars better)
     user_prompt = None
     
-    # First try reading from file (more reliable for special chars like umlauts)
+    # First try reading from file (more reliable for special chars)
     prompt_file = "/home/user/app/.user_prompt"
     if os.path.exists(prompt_file):
         try:
             with open(prompt_file, 'r') as f:
                 user_prompt = f.read().strip()
             if user_prompt:
-                print(f"[LILO] Prompt aus Datei gelesen: {len(user_prompt)} Zeichen")
+                print(f"[LILO-PREVIEW] Prompt aus Datei gelesen: {len(user_prompt)} Zeichen")
         except Exception as e:
-            print(f"[LILO] Fehler beim Lesen der Prompt-Datei: {e}")
+            print(f"[LILO-PREVIEW] Fehler beim Lesen der Prompt-Datei: {e}")
     
-    # Fallback to env var (for backwards compatibility)
+    # Fallback to env var
     if not user_prompt:
         user_prompt = os.getenv('USER_PROMPT')
         if user_prompt:
-            print(f"[LILO] Prompt aus ENV gelesen")
+            print(f"[LILO-PREVIEW] Prompt aus ENV gelesen")
     
     if user_prompt:
-        # Continue/Resume-Mode: Custom prompt vom User
-        query = f"""🚨 AUFGABE: Du MUSST das existierende Dashboard ändern!
+        # Preview mode prompt - no deploy, incremental edits for live HMR!
+        query = f"""🔴 LIVE PREVIEW MODE - Der User sieht deine Änderungen in Echtzeit!
 
 User-Anfrage: "{user_prompt}"
 
-PFLICHT-SCHRITTE (alle müssen ausgeführt werden):
+⚡ WICHTIG: Der Vite Dev-Server läuft BEREITS! Der User sieht jede Dateiänderung SOFORT im Browser!
+
+SCHRITTE (arbeite INKREMENTELL für Live-Updates):
 
 1. LESEN: Lies src/pages/Dashboard.tsx um die aktuelle Struktur zu verstehen
-2. ÄNDERN: Implementiere die User-Anfrage mit dem Edit-Tool
-3. TESTEN: Führe 'npm run build' aus um sicherzustellen dass es kompiliert
-4. BAUEN: Führe 'npm run build' aus. Bei Fehler: fixen und erneut bauen bis es klappt.
 
-⚠️ KRITISCH:
-- Du MUSST Änderungen am Code machen (Edit-Tool verwenden!)
-- Analysieren alleine reicht NICHT - du musst HANDELN!
-- Deployment passiert automatisch nach deiner Arbeit — deploye NICHT manuell!
+2. ÄNDERN (SCHRITT FÜR SCHRITT!):
+   - Mache EINE Änderung (z.B. Farbe ändern)
+   - Die Datei wird sofort geschrieben → User sieht es LIVE! ⚡
+   - Mache die NÄCHSTE Änderung
+   - Wieder sofort sichtbar!
+   
+3. TESTEN: Am Ende 'npm run build' um sicherzustellen dass es kompiliert
 
-Das Dashboard existiert bereits. Mache NUR die angeforderten Änderungen, nicht mehr.
-Starte JETZT mit Schritt 1!"""
-        print(f"[LILO] Continue-Mode mit User-Prompt: {user_prompt}")
+⚠️ KRITISCH für Live-Preview:
+- Arbeite SCHRITT FÜR SCHRITT, nicht alles auf einmal!
+- Jede Dateiänderung = Live-Update im Browser!
+- Rufe NICHT deploy_to_github auf!
+- Der User testet die Änderungen in der Live-Preview
+
+Das Dashboard existiert bereits. Mache NUR die angeforderten Änderungen.
+Starte JETZT!"""
+        print(f"[LILO-PREVIEW] User-Prompt: {user_prompt}")
     else:
-        # Normal-Mode: Neues Dashboard bauen
-        query = (
-            "Read .scaffold_context and app_metadata.json. "
-            "Analyze data, decide UI paradigm in 1-2 sentences, then implement directly. "
-            "Follow .claude/skills/frontend-impl/SKILL.md. "
-            "Use existing types and services from src/types/ and src/services/. "
-            "Run 'npm run build' when done. Deployment is automatic."
-        )
-        print(f"[LILO] Build-Mode: Neues Dashboard erstellen")
+        # Initial build in preview mode
+        query = """🔍 PREVIEW MODE - Neues Dashboard ohne Auto-Deploy
+
+Read .scaffold_context and app_metadata.json.
+Analyze data, decide UI paradigm in 1-2 sentences, then implement directly.
+Follow .claude/skills/frontend-impl/SKILL.md.
+Use existing types and services from src/types/ and src/services/.
+
+⚠️ WICHTIG:
+- Rufe NICHT deploy_to_github auf!
+- Der User wird das Dashboard erst in der Live-Preview testen
+- Wenn 'npm run build' erfolgreich ist, bist du fertig"""
+        print(f"[LILO-PREVIEW] Build-Mode: Neues Dashboard erstellen (Preview)")
 
     t_agent_total_start = time.time()
-    print(f"[LILO] Initialisiere Client")
+    print(f"[LILO-PREVIEW] Initialisiere Client")
 
-    # 4. Der Client Lifecycle
+    # Client lifecycle
     async with ClaudeSDKClient(options=options) as client:
-
-        # Anfrage senden
         await client.query(query)
 
-        # 5. Antwort-Schleife
-        # receive_response() liefert alles bis zum Ende des Auftrags
         t_last_step = t_agent_total_start
         
         async for message in client.receive_response():
@@ -141,28 +162,29 @@ Starte JETZT mit Schritt 1!"""
             dt = round(now - t_last_step, 1)
             t_last_step = now
             
-            # A. Wenn er denkt oder spricht
             if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if isinstance(block, TextBlock):
                         print(json.dumps({"type": "think", "content": block.text, "t": elapsed, "dt": dt}), flush=True)
 
                     elif isinstance(block, ToolUseBlock):
+                        if block.name in ["Write", "Edit"]:
+                            file_path = block.input.get('file_path', block.input.get('path', 'unknown'))
+                            print(f"[LIVE] 📝 {block.name}: {file_path}", flush=True)
+
                         print(json.dumps({"type": "tool", "tool": block.name, "input": str(block.input), "t": elapsed, "dt": dt}), flush=True)
 
-            # B. Wenn er fertig ist (oder Fehler)
             elif isinstance(message, ResultMessage):
                 status = "success" if not message.is_error else "error"
-                print(f"[LILO] Session ID: {message.session_id}")
+                print(f"[LILO-PREVIEW] Session ID: {message.session_id}")
                 
-                # Save session_id to file for future resume (AFTER ResultMessage)
                 if message.session_id:
                     try:
                         with open("/home/user/app/.claude_session_id", "w") as f:
                             f.write(message.session_id)
-                        print(f"[LILO] ✅ Session ID in Datei gespeichert")
+                        print(f"[LILO-PREVIEW] ✅ Session ID gespeichert")
                     except Exception as e:
-                        print(f"[LILO] ⚠️ Fehler beim Speichern der Session ID: {e}")
+                        print(f"[LILO-PREVIEW] ⚠️ Fehler: {e}")
                 
                 t_agent_total = time.time() - t_agent_total_start
                 print(json.dumps({
@@ -172,6 +194,11 @@ Starte JETZT mit Schritt 1!"""
                     "session_id": message.session_id,
                     "duration_s": round(t_agent_total, 1)
                 }), flush=True)
+                
+                print(f"[LILO-PREVIEW] ✅ Änderungen abgeschlossen ({t_agent_total:.1f}s)")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+

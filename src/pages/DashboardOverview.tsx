@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { EinkaufsartikelDialog } from '@/components/dialogs/EinkaufsartikelDialog';
 import { EinkaufslisteDialog } from '@/components/dialogs/EinkaufslisteDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { StatCard } from '@/components/StatCard';
 import { AI_PHOTO_SCAN } from '@/config/ai-features';
 
 export default function DashboardOverview() {
@@ -27,6 +26,7 @@ export default function DashboardOverview() {
 
   // State – all hooks BEFORE early returns
   const [selectedListeId, setSelectedListeId] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [artikelDialogOpen, setArtikelDialogOpen] = useState(false);
   const [listeDialogOpen, setListeDialogOpen] = useState(false);
   const [editArtikel, setEditArtikel] = useState<EnrichedEinkaufsartikel | null>(null);
@@ -43,13 +43,20 @@ export default function DashboardOverview() {
   const artikelForSelectedListe = useMemo(() => {
     if (!selectedListeId) return [];
     return enrichedEinkaufsartikel.filter(a => {
-      const id = extractRecordId(a.fields.liste_ref);
-      return id === selectedListeId;
+      const listeId = extractRecordId(a.fields.liste_ref);
+      if (listeId !== selectedListeId) return false;
+      if (!selectedPersonId) return true;
+      const personId = extractRecordId(a.fields.person_ref);
+      // Show articles assigned to selected person OR unassigned articles
+      return !personId || personId === selectedPersonId;
     });
-  }, [enrichedEinkaufsartikel, selectedListeId]);
+  }, [enrichedEinkaufsartikel, selectedListeId, selectedPersonId]);
 
   const todoCount = useMemo(() => enrichedEinkaufsartikel.filter(a => !a.fields.erledigt).length, [enrichedEinkaufsartikel]);
   const doneCount = useMemo(() => enrichedEinkaufsartikel.filter(a => a.fields.erledigt).length, [enrichedEinkaufsartikel]);
+
+  // Always show all lists (no person-based list filtering)
+  const filteredEinkaufsliste = useMemo(() => einkaufsliste, [einkaufsliste]);
 
   if (loading) return <DashboardSkeleton />;
   if (error) return <DashboardError error={error} onRetry={fetchAll} />;
@@ -77,10 +84,6 @@ export default function DashboardOverview() {
     fetchAll();
   };
 
-  // Stats
-  const listenCount = einkaufsliste.length;
-  const artikelCount = einkaufsartikel.length;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -101,34 +104,6 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          title="Listen"
-          value={String(listenCount)}
-          description="Einkaufslisten"
-          icon={<ClipboardList size={18} className="text-muted-foreground" />}
-        />
-        <StatCard
-          title="Artikel"
-          value={String(artikelCount)}
-          description="Gesamt"
-          icon={<ShoppingCart size={18} className="text-muted-foreground" />}
-        />
-        <StatCard
-          title="Offen"
-          value={String(todoCount)}
-          description="Noch zu kaufen"
-          icon={<Circle size={18} className="text-muted-foreground" />}
-        />
-        <StatCard
-          title="Erledigt"
-          value={String(doneCount)}
-          description="Bereits gekauft"
-          icon={<CheckCircle2 size={18} className="text-muted-foreground" />}
-        />
-      </div>
-
       {/* Main workspace: two-panel layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
 
@@ -136,20 +111,22 @@ export default function DashboardOverview() {
         <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="font-semibold text-sm text-foreground">Meine Listen</span>
-            <span className="text-xs text-muted-foreground">{listenCount} Listen</span>
+            <span className="text-xs text-muted-foreground">{filteredEinkaufsliste.length} Listen</span>
           </div>
 
-          {einkaufsliste.length === 0 ? (
+          {filteredEinkaufsliste.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-center px-4">
               <ClipboardList size={36} className="text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">Noch keine Einkaufslisten</p>
-              <Button size="sm" variant="outline" onClick={() => { setEditListe(null); setListeDialogOpen(true); }}>
-                <Plus size={14} className="mr-1" />Liste erstellen
-              </Button>
+              {!selectedPersonId && (
+                <Button size="sm" variant="outline" onClick={() => { setEditListe(null); setListeDialogOpen(true); }}>
+                  <Plus size={14} className="mr-1" />Liste erstellen
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-y-auto flex-1 divide-y divide-border">
-              {einkaufsliste.map(liste => {
+              {filteredEinkaufsliste.map(liste => {
                 const listeArtikel = enrichedEinkaufsartikel.filter(a => extractRecordId(a.fields.liste_ref) === liste.record_id);
                 const offenCount = listeArtikel.filter(a => !a.fields.erledigt).length;
                 const totalCount = listeArtikel.length;
@@ -246,6 +223,40 @@ export default function DashboardOverview() {
                   </Button>
                 </div>
               </div>
+
+              {/* Person filter */}
+              {einkaeufer.length > 0 && (
+                <div className="px-4 py-2 border-b border-border flex flex-wrap items-center gap-2 bg-muted/20">
+                  <span className="text-xs text-muted-foreground shrink-0">Person:</span>
+                  <button
+                    onClick={() => setSelectedPersonId(null)}
+                    className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
+                      !selectedPersonId
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                    }`}
+                  >
+                    Alle
+                  </button>
+                  {einkaeufer.map(person => {
+                    const name = [person.fields.vorname, person.fields.nachname].filter(Boolean).join(' ') || person.fields.kuerzel || 'Unbekannt';
+                    const isActive = selectedPersonId === person.record_id;
+                    return (
+                      <button
+                        key={person.record_id}
+                        onClick={() => setSelectedPersonId(isActive ? null : person.record_id)}
+                        className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {artikelForSelectedListe.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
