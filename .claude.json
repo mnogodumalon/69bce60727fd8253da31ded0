@@ -47,7 +47,7 @@
   "opus45MigrationComplete": true,
   "opusProMigrationComplete": true,
   "thinkingMigrationComplete": true,
-  "penguinModeOrgEnabled": true,
+  "penguinModeOrgEnabled": false,
   "clientDataCache": {
     "data": null,
     "timestamp": 1773992234678

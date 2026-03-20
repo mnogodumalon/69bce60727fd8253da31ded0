@@ -7,7 +7,7 @@ import { APP_IDS } from '@/types/app';
 import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
 import { formatDate } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Plus, Pencil, Trash2, CheckCircle2, Circle, ShoppingCart, ListChecks, CalendarDays, ClipboardList } from 'lucide-react';
+import { AlertCircle, Plus, ShoppingCart, ListChecks, CalendarDays, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EinkaufsartikelDialog } from '@/components/dialogs/EinkaufsartikelDialog';
@@ -189,22 +189,6 @@ export default function DashboardOverview() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                        <button
-                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => { setEditListe(liste); setListeDialogOpen(true); }}
-                          title="Bearbeiten"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                          onClick={() => setDeleteListeTarget(liste)}
-                          title="Löschen"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
                     </button>
                   );
                 })}
@@ -335,7 +319,6 @@ export default function DashboardOverview() {
                           einkaeuferMap={einkaeuferMap}
                           onToggle={() => handleToggleErledigt(artikel)}
                           onEdit={() => { setEditArtikel(artikel); setArtikelDialogOpen(true); }}
-                          onDelete={() => setDeleteArtikelTarget(artikel)}
                         />
                       ))}
                     </div>
@@ -354,7 +337,6 @@ export default function DashboardOverview() {
                           einkaeuferMap={einkaeuferMap}
                           onToggle={() => handleToggleErledigt(artikel)}
                           onEdit={() => { setEditArtikel(artikel); setArtikelDialogOpen(true); }}
-                          onDelete={() => setDeleteArtikelTarget(artikel)}
                         />
                       ))}
                     </div>
@@ -457,13 +439,11 @@ function ArtikelRow({
   einkaeuferMap,
   onToggle,
   onEdit,
-  onDelete,
 }: {
   artikel: EnrichedEinkaufsartikel;
   einkaeuferMap: Map<string, Einkaeufer>;
   onToggle: () => void;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   const isDone = !!artikel.fields.erledigt;
 
@@ -483,8 +463,10 @@ function ArtikelRow({
         title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
       >
         {isDone
-          ? <CheckCircle2 size={20} className="text-primary" />
-          : <Circle size={20} />
+          ? <div className="w-5 h-5 rounded-sm bg-primary flex items-center justify-center shrink-0">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          : <div className="w-5 h-5 rounded-sm border-2 border-muted-foreground/40 shrink-0" />
         }
       </button>
 
@@ -498,29 +480,13 @@ function ArtikelRow({
         {artikel.fields.menge && (
           <span className="text-xs text-muted-foreground shrink-0">{artikel.fields.menge}</span>
         )}
-        {personKuerzel && (
-          <span className="text-xs text-muted-foreground ml-auto shrink-0 font-medium">
-            {personKuerzel}
-          </span>
-        )}
       </div>
+      {personKuerzel && (
+        <span className="text-xs text-muted-foreground shrink-0 font-mono font-semibold ml-auto">
+          {personKuerzel}
+        </span>
+      )}
 
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button
-          className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-          onClick={onEdit}
-          title="Bearbeiten"
-        >
-          <Pencil size={13} />
-        </button>
-        <button
-          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-          onClick={onDelete}
-          title="Löschen"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
     </div>
   );
 }
