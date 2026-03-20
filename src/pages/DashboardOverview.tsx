@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { enrichEinkaufsartikel } from '@/lib/enrich';
 import type { EnrichedEinkaufsartikel } from '@/types/enriched';
@@ -35,6 +35,28 @@ export default function DashboardOverview() {
   const [deleteArtikelTarget, setDeleteArtikelTarget] = useState<EnrichedEinkaufsartikel | null>(null);
   const [deleteListeTarget, setDeleteListeTarget] = useState<Einkaufsliste | null>(null);
   const [einkaeuferDialogOpen, setEinkaeuferDialogOpen] = useState(false);
+  const [listePage, setListePage] = useState(0);
+
+  const LISTS_PER_PAGE = 2;
+
+  // Sort lists by date descending (newest first)
+  const sortedEinkaufsliste = useMemo(() => {
+    return [...einkaufsliste].sort((a, b) => {
+      const dateA = a.fields.datum ? new Date(a.fields.datum).getTime() : 0;
+      const dateB = b.fields.datum ? new Date(b.fields.datum).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [einkaufsliste]);
+
+  // Auto-select newest list on load
+  useEffect(() => {
+    if (sortedEinkaufsliste.length > 0 && selectedListeId === null) {
+      setSelectedListeId(sortedEinkaufsliste[0].record_id);
+    }
+  }, [sortedEinkaufsliste, selectedListeId]);
+
+  const totalPages = Math.ceil(sortedEinkaufsliste.length / LISTS_PER_PAGE);
+  const pagedEinkaufsliste = sortedEinkaufsliste.slice(listePage * LISTS_PER_PAGE, (listePage + 1) * LISTS_PER_PAGE);
 
   // Derived data – computed after hooks
   const selectedListe = useMemo(
@@ -54,11 +76,6 @@ export default function DashboardOverview() {
     });
   }, [enrichedEinkaufsartikel, selectedListeId, selectedPersonId]);
 
-  const todoCount = useMemo(() => enrichedEinkaufsartikel.filter(a => !a.fields.erledigt).length, [enrichedEinkaufsartikel]);
-  const doneCount = useMemo(() => enrichedEinkaufsartikel.filter(a => a.fields.erledigt).length, [enrichedEinkaufsartikel]);
-
-  // Always show all lists (no person-based list filtering)
-  const filteredEinkaufsliste = useMemo(() => einkaufsliste, [einkaufsliste]);
 
   if (loading) return <DashboardSkeleton />;
   if (error) return <DashboardError error={error} onRetry={fetchAll} />;
@@ -113,10 +130,10 @@ export default function DashboardOverview() {
         <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="font-semibold text-sm text-foreground">Meine Listen</span>
-            <span className="text-xs text-muted-foreground">{filteredEinkaufsliste.length} Listen</span>
+            <span className="text-xs text-muted-foreground">{sortedEinkaufsliste.length} Listen</span>
           </div>
 
-          {filteredEinkaufsliste.length === 0 ? (
+          {sortedEinkaufsliste.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-center px-4">
               <ClipboardList size={36} className="text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">Noch keine Einkaufslisten</p>
@@ -127,70 +144,95 @@ export default function DashboardOverview() {
               )}
             </div>
           ) : (
-            <div className="overflow-y-auto flex-1 divide-y divide-border">
-              {filteredEinkaufsliste.map(liste => {
-                const listeArtikel = enrichedEinkaufsartikel.filter(a => extractRecordId(a.fields.liste_ref) === liste.record_id);
-                const offenCount = listeArtikel.filter(a => !a.fields.erledigt).length;
-                const totalCount = listeArtikel.length;
-                const isSelected = selectedListeId === liste.record_id;
+            <>
+              <div className="divide-y divide-border flex-1">
+                {pagedEinkaufsliste.map(liste => {
+                  const listeArtikel = enrichedEinkaufsartikel.filter(a => extractRecordId(a.fields.liste_ref) === liste.record_id);
+                  const offenCount = listeArtikel.filter(a => !a.fields.erledigt).length;
+                  const totalCount = listeArtikel.length;
+                  const isSelected = selectedListeId === liste.record_id;
 
-                return (
-                  <button
-                    key={liste.record_id}
-                    onClick={() => setSelectedListeId(isSelected ? null : liste.record_id)}
-                    className={`w-full text-left px-4 py-3 transition-colors hover:bg-accent/50 flex items-start gap-3 ${
-                      isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
-                    }`}
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      <ShoppingCart size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className="font-medium text-sm truncate text-primary hover:underline cursor-pointer"
-                        onClick={e => { e.stopPropagation(); setEditListe(liste); setListeDialogOpen(true); }}
-                      >{liste.fields.listenname || 'Ohne Namen'}</div>
-                      {liste.fields.beschreibung && (
-                        <div className="text-xs text-muted-foreground truncate mt-0.5">{liste.fields.beschreibung}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {liste.fields.datum && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <CalendarDays size={11} />
-                            {formatDate(liste.fields.datum)}
-                          </span>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {offenCount > 0 ? (
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4">{offenCount} offen</Badge>
-                          ) : totalCount > 0 ? (
-                            <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 text-green-600 border-green-300">Alle erledigt</Badge>
-                          ) : (
-                            <span className="text-muted-foreground/60">Leer</span>
-                          )}
-                        </span>
+                  return (
+                    <button
+                      key={liste.record_id}
+                      onClick={() => setSelectedListeId(isSelected ? null : liste.record_id)}
+                      className={`w-full text-left px-4 py-3 transition-colors hover:bg-accent/50 flex items-start gap-3 ${
+                        isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                      }`}
+                    >
+                      <div className="mt-0.5 shrink-0">
+                        <ShoppingCart size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
                       </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                      <button
-                        className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => { setEditListe(liste); setListeDialogOpen(true); }}
-                        title="Bearbeiten"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        onClick={() => setDeleteListeTarget(liste)}
-                        title="Löschen"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className="font-medium text-sm truncate text-primary hover:underline cursor-pointer"
+                          onClick={e => { e.stopPropagation(); setEditListe(liste); setListeDialogOpen(true); }}
+                        >{liste.fields.listenname || 'Ohne Namen'}</div>
+                        {liste.fields.beschreibung && (
+                          <div className="text-xs text-muted-foreground truncate mt-0.5">{liste.fields.beschreibung}</div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {liste.fields.datum && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <CalendarDays size={11} />
+                              {formatDate(liste.fields.datum)}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {offenCount > 0 ? (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4">{offenCount} offen</Badge>
+                            ) : totalCount > 0 ? (
+                              <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 text-green-600 border-green-300">Alle erledigt</Badge>
+                            ) : (
+                              <span className="text-muted-foreground/60">Leer</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => { setEditListe(liste); setListeDialogOpen(true); }}
+                          title="Bearbeiten"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          onClick={() => setDeleteListeTarget(liste)}
+                          title="Löschen"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-4 py-2 border-t border-border flex items-center justify-between gap-2 bg-muted/20">
+                  <button
+                    onClick={() => setListePage(p => Math.max(0, p - 1))}
+                    disabled={listePage === 0}
+                    className="text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ‹ Zurück
                   </button>
-                );
-              })}
-            </div>
+                  <span className="text-xs text-muted-foreground">
+                    {listePage + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setListePage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={listePage >= totalPages - 1}
+                    className="text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Weiter ›
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
