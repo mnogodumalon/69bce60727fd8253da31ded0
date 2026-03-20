@@ -1,0 +1,198 @@
+{
+  "appgroup_id": "69bce60727fd8253da31ded0",
+  "appgroup_name": "Einkaufsliste",
+  "apps": {
+    "einkaufsartikel": {
+      "app_id": "69bce5f8550beea6f03c7e74",
+      "name": "Einkaufsartikel",
+      "controls": {
+        "artikelname": {
+          "identifier": "artikelname",
+          "label": "Artikel",
+          "type": "string",
+          "subtype": "text",
+          "fulltype": "string/text",
+          "description": "A string value not longer than 4000 characters (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": true,
+          "in_text": true,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        },
+        "menge": {
+          "identifier": "menge",
+          "label": "Menge / Einheit",
+          "type": "string",
+          "subtype": "text",
+          "fulltype": "string/text",
+          "description": "A string value not longer than 4000 characters (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": true,
+          "in_text": true,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        },
+        "liste_ref": {
+          "identifier": "liste_ref",
+          "label": "Einkaufsliste",
+          "type": "applookup",
+          "subtype": "select",
+          "fulltype": "applookup/select",
+          "description": "A reference to a LivingApp record from the target lookup app 'Einkaufsliste' with the id `69bce5f85c5d7cbd7a1ef4ae` (or `null`/`None`).\n\nThe field value will be a valid record URL in the form `https://my.living-apps.de/rest/apps/69bce5f85c5d7cbd7a1ef4ae/<record-id>` (or `null`/`None`).\n\nDisplayed as single-select field in HTML pages.",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": false,
+          "in_text": false,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true,
+          "lookup_app": "https://my.living-apps.de/rest/apps/69bce5f85c5d7cbd7a1ef4ae"
+        },
+        "person_ref": {
+          "identifier": "person_ref",
+          "label": "Zugewiesene Person",
+          "type": "applookup",
+          "subtype": "select",
+          "fulltype": "applookup/select",
+          "description": "A reference to a LivingApp record from the target lookup app 'Eink\u00e4ufer' with the id `69bce5f2e35329c5b58c58a3` (or `null`/`None`).\n\nThe field value will be a valid record URL in the form `https://my.living-apps.de/rest/apps/69bce5f2e35329c5b58c58a3/<record-id>` (or `null`/`None`).\n\nDisplayed as single-select field in HTML pages.",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": false,
+          "in_text": false,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true,
+          "lookup_app": "https://my.living-apps.de/rest/apps/69bce5f2e35329c5b58c58a3"
+        },
+        "erledigt": {
+          "identifier": "erledigt",
+          "label": "Erledigt",
+          "type": "bool",
+          "subtype": null,
+          "fulltype": "bool",
+          "description": "A boolean value, i.e. `true` or `false` (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": false,
+          "in_text": false,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        }
+      }
+    },
+    "einkaeufer": {
+      "app_id": "69bce5f2e35329c5b58c58a3",
+      "name": "Eink\u00e4ufer",
+      "controls": {
+        "vorname": {
+          "identifier": "vorname",
+          "label": "Vorname",
+          "type": "string",
+          "subtype": "text",
+          "fulltype": "string/text",
+          "description": "A string value not longer than 4000 characters (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": true,
+          "in_text": true,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        },
+        "nachname": {
+          "identifier": "nachname",
+          "label": "Nachname",
+          "type": "string",
+          "subtype": "text",
+          "fulltype": "string/text",
+          "description": "A string value not longer than 4000 characters (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": false,
+          "in_text": false,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        },
+        "kuerzel": {
+          "identifier": "kuerzel",
+          "label": "K\u00fcrzel",
+          "type": "string",
+          "subtype": "text",
+          "fulltype": "string/text",
+          "description": "A string value not longer than 4000 characters (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": true,
+          "in_text": true,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        }
+      }
+    },
+    "einkaufsliste": {
+      "app_id": "69bce5f85c5d7cbd7a1ef4ae",
+      "name": "Einkaufsliste",
+      "controls": {
+        "listenname": {
+          "identifier": "listenname",
+          "label": "Name der Liste",
+          "type": "string",
+          "subtype": "text",
+          "fulltype": "string/text",
+          "description": "A string value not longer than 4000 characters (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": true,
+          "in_text": true,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        },
+        "beschreibung": {
+          "identifier": "beschreibung",
+          "label": "Beschreibung",
+          "type": "string",
+          "subtype": "textarea",
+          "fulltype": "string/textarea",
+          "description": "A string value that can contain multiple lines of text (or `null`/`None`).",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": true,
+          "in_text": true,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        },
+        "datum": {
+          "identifier": "datum",
+          "label": "Datum",
+          "type": "date",
+          "subtype": "date",
+          "fulltype": "date/date",
+          "description": "A calendar date consisting of year, month and day (or `null`/`None`)\n\nThe field value will be a string in the format `<YYYY>-<MM>-<DD>` (or `null`/`None`).\n\nFor example: `2000-02-29`.",
+          "required": null,
+          "in_list": true,
+          "in_mobile_list": false,
+          "in_text": false,
+          "in_structured_search": false,
+          "in_fulltext_search": false,
+          "in_expert_search": true
+        }
+      }
+    }
+  },
+  "metadata": {
+    "apps_list": [
+      "Einkaufsartikel",
+      "Eink\u00e4ufer",
+      "Einkaufsliste"
+    ]
+  }
+}
