@@ -2,12 +2,12 @@ import { useState, useMemo, useEffect } from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { enrichEinkaufsartikel } from '@/lib/enrich';
 import type { EnrichedEinkaufsartikel } from '@/types/enriched';
-import type { Einkaufsliste } from '@/types/app';
+import type { Einkaufsliste, Einkaeufer } from '@/types/app';
 import { APP_IDS } from '@/types/app';
 import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
 import { formatDate } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Plus, Pencil, Trash2, CheckCircle2, Circle, ShoppingCart, ListChecks, Users, CalendarDays, ClipboardList } from 'lucide-react';
+import { AlertCircle, Plus, Pencil, Trash2, CheckCircle2, Circle, ShoppingCart, ListChecks, CalendarDays, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EinkaufsartikelDialog } from '@/components/dialogs/EinkaufsartikelDialog';
@@ -332,6 +332,7 @@ export default function DashboardOverview() {
                         <ArtikelRow
                           key={artikel.record_id}
                           artikel={artikel}
+                          einkaeuferMap={einkaeuferMap}
                           onToggle={() => handleToggleErledigt(artikel)}
                           onEdit={() => { setEditArtikel(artikel); setArtikelDialogOpen(true); }}
                           onDelete={() => setDeleteArtikelTarget(artikel)}
@@ -350,6 +351,7 @@ export default function DashboardOverview() {
                         <ArtikelRow
                           key={artikel.record_id}
                           artikel={artikel}
+                          einkaeuferMap={einkaeuferMap}
                           onToggle={() => handleToggleErledigt(artikel)}
                           onEdit={() => { setEditArtikel(artikel); setArtikelDialogOpen(true); }}
                           onDelete={() => setDeleteArtikelTarget(artikel)}
@@ -452,16 +454,26 @@ export default function DashboardOverview() {
 
 function ArtikelRow({
   artikel,
+  einkaeuferMap,
   onToggle,
   onEdit,
   onDelete,
 }: {
   artikel: EnrichedEinkaufsartikel;
+  einkaeuferMap: Map<string, Einkaeufer>;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const isDone = !!artikel.fields.erledigt;
+
+  const personKuerzel = (() => {
+    if (!artikel.fields.person_ref) return '';
+    const id = extractRecordId(artikel.fields.person_ref);
+    if (!id) return '';
+    const person = einkaeuferMap.get(id);
+    return person?.fields.kuerzel || '';
+  })();
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-accent/30 transition-colors group ${isDone ? 'opacity-60' : ''}`}>
@@ -476,24 +488,21 @@ function ArtikelRow({
         }
       </button>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 flex items-center gap-2">
         <button
           onClick={onEdit}
-          className={`text-sm font-medium text-left hover:underline cursor-pointer ${isDone ? 'line-through text-muted-foreground' : 'text-primary'}`}
+          className={`text-sm font-medium text-left hover:underline cursor-pointer truncate ${isDone ? 'line-through text-muted-foreground' : 'text-primary'}`}
         >
           {artikel.fields.artikelname || '—'}
         </button>
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          {artikel.fields.menge && (
-            <span className="text-xs text-muted-foreground">{artikel.fields.menge}</span>
-          )}
-          {artikel.person_refName && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Users size={11} />
-              {artikel.person_refName}
-            </span>
-          )}
-        </div>
+        {artikel.fields.menge && (
+          <span className="text-xs text-muted-foreground shrink-0">{artikel.fields.menge}</span>
+        )}
+        {personKuerzel && (
+          <span className="text-xs text-muted-foreground ml-auto shrink-0 font-medium">
+            {personKuerzel}
+          </span>
+        )}
       </div>
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
