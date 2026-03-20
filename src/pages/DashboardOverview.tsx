@@ -405,9 +405,12 @@ function ArtikelRow({
       </button>
 
       <div className="flex-1 min-w-0">
-        <span className={`text-sm font-medium ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+        <button
+          onClick={onEdit}
+          className={`text-sm font-medium text-left hover:underline cursor-pointer ${isDone ? 'line-through text-muted-foreground' : 'text-primary'}`}
+        >
           {artikel.fields.artikelname || '—'}
-        </span>
+        </button>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {artikel.fields.menge && (
             <span className="text-xs text-muted-foreground">{artikel.fields.menge}</span>
