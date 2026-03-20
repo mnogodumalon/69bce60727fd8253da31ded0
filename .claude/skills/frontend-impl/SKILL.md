@@ -42,11 +42,7 @@ Then implement immediately. No design_brief.md, no task lists, no planning docum
 
 ---
 
-## Step 2: Edit Layout.tsx (title only)
-
-Use Edit to change `APP_TITLE` and `APP_SUBTITLE`. Nothing else.
-
-## Step 3: Build DashboardOverview.tsx
+## Step 2: Build DashboardOverview.tsx
 
 **Mandatory sequence:**
 1. **Read** `src/pages/DashboardOverview.tsx` using the Read tool
@@ -54,13 +50,13 @@ Use Edit to change `APP_TITLE` and `APP_SUBTITLE`. Nothing else.
 
 **NEVER use Bash (cat/echo/heredoc) for file operations.** If Read or Write fails, retry with the same tool.
 
-## Step 4: Deploy
+## Step 3: Build
 
 ```bash
 npm run build
 ```
 
-Then call `mcp__deploy_tools__deploy_to_github`
+Deployment is automatic — do NOT deploy manually. After build succeeds, STOP.
 
 ---
 
@@ -153,6 +149,7 @@ Every layout needs variation — size, weight, spacing, format, typography. If e
   dozentenList={dozenten}                    // list prop = {entityIdentifier}List — matches useDashboardData key exactly
   raeumeList={raeume}                        // dozenten → dozentenList, raeume → raeumeList (NOT dozentList/raumList)
   enablePhotoScan={AI_PHOTO_SCAN['Kurse']}   // import AI_PHOTO_SCAN from '@/config/ai-features'
+  enablePhotoLocation={AI_PHOTO_LOCATION['Kurse']}  // import AI_PHOTO_LOCATION — extract GPS from photo EXIF for geo field auto-fill
 />
 ```
 
@@ -170,9 +167,9 @@ defaultValues={{ kurs: createRecordUrl(APP_IDS.KURSE, selectedKursId) }}
 **`StatCard`** — `icon` must be rendered JSX, NOT a component reference:
 ```tsx
 // ✅ CORRECT
-<StatCard title="Kurse" value="42" description="Gesamt" icon={<BookOpen size={18} className="text-muted-foreground" />} />
+<StatCard title="Kurse" value="42" description="Gesamt" icon={<IconBook size={18} className="text-muted-foreground" />} />
 // ❌ WRONG — causes runtime error
-<StatCard icon={BookOpen} />
+<StatCard icon={IconBook} />
 ```
 
 **`ConfirmDialog`** — uses `onClose` (not `onCancel`):
@@ -187,6 +184,9 @@ defaultValues={{ kurs: createRecordUrl(APP_IDS.KURSE, selectedKursId) }}
 ```
 
 ## Critical Implementation Rules
+
+### Import Hygiene
+Only import what you use. TypeScript strict mode **errors on unused imports and variables**. Every `import`, prop, and const must be referenced. Double-check before running `npm run build`.
 
 ### Type Imports
 ```typescript
@@ -308,7 +308,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 
 - **shadcn/ui** — all components in `src/components/ui/`
 - **recharts** — LineChart, BarChart, PieChart, AreaChart
-- **lucide-react** — icons
+- **@tabler/icons-react** — icons (all prefixed with `Icon`, e.g. `IconPlus`, `IconMapPin`; use `stroke` not `strokeWidth`)
 - **date-fns** — date formatting with `de` locale
 
 ## Formatting (pre-generated — just import)

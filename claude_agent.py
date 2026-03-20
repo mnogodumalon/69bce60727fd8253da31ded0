@@ -65,14 +65,13 @@ async def main():
                 "- useDashboardData.ts, enriched.ts, enrich.ts, formatters.ts, ai.ts, chat-context.ts, ChatWidget.tsx: NEVER touch — use as-is\n"
                 "- src/config/ai-features.ts: MAY edit — set AI_PHOTO_SCAN['Entity'] = true to enable photo scan in dialogs\n"
                 "- Dashboard is the PRIMARY WORKSPACE — build interactive domain-specific UI, not an info page\n"
-                "- ALWAYS reuse pre-generated {Entity}Dialog from '@/components/dialogs/{Entity}Dialog' for create/edit forms in the dashboard — never build custom forms\n"
-                "- NEVER use TodoWrite — no task lists, no planning, just implement directly"
+                "- ALWAYS reuse pre-generated {Entity}Dialog from '@/components/dialogs/{Entity}Dialog' for create/edit forms in the dashboard — never build custom forms"
             ),
         },
         setting_sources=["project"],
         mcp_servers={"deploy_tools": deployment_server},
         permission_mode="bypassPermissions",  # Bypass all checks - instant writes for live preview!
-        allowed_tools=["Bash", "Write", "Read", "Edit", "Glob", "Grep", "Task"],
+        disallowed_tools=["TodoWrite", "NotebookEdit", "WebFetch", "ExitPlanMode", "Task", "SlashCommand"],
         cwd="/home/user/app",
         model="claude-sonnet-4-6"#"claude-opus-4-6",
     )
@@ -113,7 +112,7 @@ User-Anfrage: "{user_prompt}"
 
 SCHRITTE (arbeite INKREMENTELL für Live-Updates):
 
-1. LESEN: Lies src/pages/Dashboard.tsx um die aktuelle Struktur zu verstehen
+1. LESEN: Lies src/pages/DashboardOverview.tsx um die aktuelle Struktur zu verstehen
 
 2. ÄNDERN (SCHRITT FÜR SCHRITT!):
    - Mache EINE Änderung (z.B. Farbe ändern)

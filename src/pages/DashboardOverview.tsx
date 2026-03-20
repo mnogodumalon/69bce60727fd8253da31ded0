@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EinkaufsartikelDialog } from '@/components/dialogs/EinkaufsartikelDialog';
 import { EinkaufslisteDialog } from '@/components/dialogs/EinkaufslisteDialog';
+import { EinkaeuferDialog } from '@/components/dialogs/EinkaeuferDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AI_PHOTO_SCAN } from '@/config/ai-features';
 
@@ -33,6 +34,7 @@ export default function DashboardOverview() {
   const [editListe, setEditListe] = useState<Einkaufsliste | null>(null);
   const [deleteArtikelTarget, setDeleteArtikelTarget] = useState<EnrichedEinkaufsartikel | null>(null);
   const [deleteListeTarget, setDeleteListeTarget] = useState<Einkaufsliste | null>(null);
+  const [einkaeuferDialogOpen, setEinkaeuferDialogOpen] = useState(false);
 
   // Derived data – computed after hooks
   const selectedListe = useMemo(
@@ -225,9 +227,9 @@ export default function DashboardOverview() {
               </div>
 
               {/* Person filter */}
-              {einkaeufer.length > 0 && (
-                <div className="px-4 py-2 border-b border-border flex flex-wrap items-center gap-2 bg-muted/20">
-                  <span className="text-xs text-muted-foreground shrink-0">Person:</span>
+              <div className="px-4 py-2 border-b border-border flex flex-wrap items-center gap-2 bg-muted/20">
+                <span className="text-xs text-muted-foreground shrink-0">Person:</span>
+                {einkaeufer.length > 0 && (
                   <button
                     onClick={() => setSelectedPersonId(null)}
                     className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
@@ -238,25 +240,33 @@ export default function DashboardOverview() {
                   >
                     Alle
                   </button>
-                  {einkaeufer.map(person => {
-                    const name = [person.fields.vorname, person.fields.nachname].filter(Boolean).join(' ') || person.fields.kuerzel || 'Unbekannt';
-                    const isActive = selectedPersonId === person.record_id;
-                    return (
-                      <button
-                        key={person.record_id}
-                        onClick={() => setSelectedPersonId(isActive ? null : person.record_id)}
-                        className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
-                          isActive
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
-                        }`}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                )}
+                {einkaeufer.map(person => {
+                  const name = [person.fields.vorname, person.fields.nachname].filter(Boolean).join(' ') || person.fields.kuerzel || 'Unbekannt';
+                  const isActive = selectedPersonId === person.record_id;
+                  return (
+                    <button
+                      key={person.record_id}
+                      onClick={() => setSelectedPersonId(isActive ? null : person.record_id)}
+                      className={`text-xs px-2.5 py-0.5 rounded-full border transition-colors ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setEinkaeuferDialogOpen(true)}
+                  className="text-xs px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center gap-1"
+                  title="Neue Person anlegen"
+                >
+                  <Plus size={11} className="shrink-0" />
+                  <span>Person</span>
+                </button>
+              </div>
 
               {artikelForSelectedListe.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
@@ -368,6 +378,16 @@ export default function DashboardOverview() {
         }}
         defaultValues={editListe?.fields}
         enablePhotoScan={AI_PHOTO_SCAN['Einkaufsliste']}
+      />
+
+      <EinkaeuferDialog
+        open={einkaeuferDialogOpen}
+        onClose={() => setEinkaeuferDialogOpen(false)}
+        onSubmit={async (fields) => {
+          await LivingAppsService.createEinkaeuferEntry(fields);
+          fetchAll();
+        }}
+        enablePhotoScan={AI_PHOTO_SCAN['Einkaeufer']}
       />
 
       <ConfirmDialog
