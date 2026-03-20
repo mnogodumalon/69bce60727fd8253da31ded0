@@ -167,7 +167,10 @@ export default function DashboardOverview() {
                       <ShoppingCart size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate text-foreground">{liste.fields.listenname || 'Ohne Namen'}</div>
+                      <div
+                        className="font-medium text-sm truncate text-primary hover:underline cursor-pointer"
+                        onClick={e => { e.stopPropagation(); setEditListe(liste); setListeDialogOpen(true); }}
+                      >{liste.fields.listenname || 'Ohne Namen'}</div>
                       {liste.fields.beschreibung && (
                         <div className="text-xs text-muted-foreground truncate mt-0.5">{liste.fields.beschreibung}</div>
                       )}
