@@ -242,7 +242,7 @@ export default function DashboardOverview() {
                   </button>
                 )}
                 {einkaeufer.map(person => {
-                  const name = [person.fields.vorname, person.fields.nachname].filter(Boolean).join(' ') || person.fields.kuerzel || 'Unbekannt';
+                  const name = person.fields.kuerzel || [person.fields.vorname, person.fields.nachname].filter(Boolean).join(' ') || 'Unbekannt';
                   const isActive = selectedPersonId === person.record_id;
                   return (
                     <button
@@ -260,11 +260,10 @@ export default function DashboardOverview() {
                 })}
                 <button
                   onClick={() => setEinkaeuferDialogOpen(true)}
-                  className="text-xs px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center gap-1"
+                  className="w-6 h-6 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center shrink-0"
                   title="Neue Person anlegen"
                 >
-                  <Plus size={11} className="shrink-0" />
-                  <span>Person</span>
+                  <Plus size={12} className="shrink-0" />
                 </button>
               </div>
 
