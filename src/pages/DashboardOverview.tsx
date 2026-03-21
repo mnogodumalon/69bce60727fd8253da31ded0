@@ -107,15 +107,9 @@ export default function DashboardOverview() {
     fetchAll();
   };
 
-  // Remove person assignment from an article — must send null (not undefined) so the API actually clears the field
+  // Remove person assignment from an article — send null so the API actually clears the field
   const handleUnassignPerson = async (artikel: EnrichedEinkaufsartikel) => {
-    const body = { fields: { person_ref: null } };
-    await fetch(`/api/la/apps/${APP_IDS.EINKAUFSARTIKEL}/records/${artikel.record_id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'omit',
-      body: JSON.stringify(body),
-    });
+    await LivingAppsService.updateEinkaufsartikelEntry(artikel.record_id, { person_ref: null as unknown as undefined });
     fetchAll();
   };
 
