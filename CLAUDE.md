@@ -169,6 +169,7 @@ All UI you build must work from 320px mobile to 1440px+ desktop without any elem
 - **Grid layouts:** Use responsive columns (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`). Never use a fixed column count that assumes desktop width.
 - **Tables:** Wrap in `overflow-x-auto` so they scroll horizontally on small screens instead of breaking the layout.
 - **Bottom action bars / footers inside cards:** Use `flex-wrap gap-2` and ensure buttons shrink (`shrink-0` only on icons, not on the button itself).
+- **Touch-friendly actions:** NEVER hide interactive elements (buttons, icons, links) behind hover. No `opacity-0 group-hover:opacity-100`, no `invisible group-hover:visible`, no `hidden group-hover:block`. All clickable elements must be visible and tappable without hovering. Hover feedback (bg color change, shadow) is fine.
 
 ### Icons (@tabler/icons-react only)
 

@@ -5,7 +5,7 @@ The user will review changes in live preview before deploying manually.
 import asyncio
 import json
 import time
-from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, ToolUseBlock, TextBlock, ResultMessage, HookMatcher, create_sdk_mcp_server, tool
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, UserMessage, ToolUseBlock, ToolResultBlock, TextBlock, ResultMessage, HookMatcher, create_sdk_mcp_server, tool
 import subprocess
 import os
 
@@ -13,11 +13,15 @@ _t0 = time.time()
 
 async def _on_post_tool_use(input_data: dict, tool_use_id: str | None = None, context: dict | None = None) -> dict:
     """Log tool results after execution."""
-    tool_name = input_data.get("tool_name", "?")
-    response = input_data.get("tool_response", "")
-    output = str(response)[:1000] if response else ""
-    elapsed = round(time.time() - _t0, 1)
-    print(json.dumps({"type": "tool_result", "tool": tool_name, "output": output, "t": elapsed}), flush=True)
+    try:
+        tool_name = input_data.get("tool_name", "?")
+        response = input_data.get("tool_response", "")
+        output = str(response)[:4000] if response else ""
+        elapsed = round(time.time() - _t0, 1)
+        print(json.dumps({"type": "tool_result", "tool": tool_name, "output": output, "t": elapsed}), flush=True)
+    except Exception as e:
+        elapsed = round(time.time() - _t0, 1)
+        print(json.dumps({"type": "tool_result", "tool": input_data.get("tool_name", "?"), "output": f"[hook error: {e}]", "t": elapsed}), flush=True)
     return {"continue_": True}
 
 
@@ -65,7 +69,8 @@ async def main():
                 "- useDashboardData.ts, enriched.ts, enrich.ts, formatters.ts, ai.ts, chat-context.ts, ChatWidget.tsx: NEVER touch — use as-is\n"
                 "- src/config/ai-features.ts: MAY edit — set AI_PHOTO_SCAN['Entity'] = true to enable photo scan in dialogs\n"
                 "- Dashboard is the PRIMARY WORKSPACE — build interactive domain-specific UI, not an info page\n"
-                "- ALWAYS reuse pre-generated {Entity}Dialog from '@/components/dialogs/{Entity}Dialog' for create/edit forms in the dashboard — never build custom forms"
+                "- ALWAYS reuse pre-generated {Entity}Dialog from '@/components/dialogs/{Entity}Dialog' for create/edit forms in the dashboard — never build custom forms\n"
+                "- TOUCH-FRIENDLY: NEVER hide action buttons/icons behind hover (no opacity-0 group-hover:opacity-100). All interactive elements must be visible without hovering."
             ),
         },
         setting_sources=["project"],
@@ -172,6 +177,13 @@ Use existing types and services from src/types/ and src/services/.
                             print(f"[LIVE] 📝 {block.name}: {file_path}", flush=True)
 
                         print(json.dumps({"type": "tool", "tool": block.name, "input": str(block.input), "t": elapsed, "dt": dt}), flush=True)
+
+            elif isinstance(message, UserMessage):
+                if isinstance(message.content, list):
+                    for block in message.content:
+                        if isinstance(block, ToolResultBlock):
+                            content = str(block.content)[:4000] if block.content else ""
+                            print(json.dumps({"type": "tool_result", "tool_use_id": block.tool_use_id, "output": content, "is_error": block.is_error, "t": elapsed}), flush=True)
 
             elif isinstance(message, ResultMessage):
                 status = "success" if not message.is_error else "error"

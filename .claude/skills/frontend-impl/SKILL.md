@@ -133,7 +133,7 @@ Create typography hierarchy through weight differences (font-300 vs font-700) an
 Every layout needs variation — size, weight, spacing, format, typography. If everything is the same size in identical cards, it's AI slop.
 
 **Mobile:** Vertical flow, thumb-friendly, hero dominates first viewport.
-**Desktop:** Use horizontal space, multi-column where appropriate, hover reveals.
+**Desktop:** Use horizontal space, multi-column where appropriate. Action buttons (edit, delete, close) must always be visible — never hide them behind hover.
 
 ---
 

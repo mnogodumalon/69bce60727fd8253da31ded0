@@ -7,7 +7,16 @@ import { APP_IDS } from '@/types/app';
 import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
 import { formatDate } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Plus, ShoppingCart, ListChecks, CalendarDays, ClipboardList } from 'lucide-react';
+import {
+  IconAlertCircle,
+  IconPlus,
+  IconShoppingCart,
+  IconListCheck,
+  IconCalendar,
+  IconClipboardList,
+  IconHandFinger,
+  IconX,
+} from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EinkaufsartikelDialog } from '@/components/dialogs/EinkaufsartikelDialog';
@@ -25,7 +34,7 @@ export default function DashboardOverview() {
 
   const enrichedEinkaufsartikel = enrichEinkaufsartikel(einkaufsartikel, { einkaufslisteMap, einkaeuferMap });
 
-  // State – all hooks BEFORE early returns
+  // ALL hooks BEFORE early returns
   const [selectedListeId, setSelectedListeId] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [artikelDialogOpen, setArtikelDialogOpen] = useState(false);
@@ -39,7 +48,6 @@ export default function DashboardOverview() {
 
   const LISTS_PER_PAGE = 2;
 
-  // Sort lists by date descending (newest first)
   const sortedEinkaufsliste = useMemo(() => {
     return [...einkaufsliste].sort((a, b) => {
       const dateA = a.fields.datum ? new Date(a.fields.datum).getTime() : 0;
@@ -48,7 +56,6 @@ export default function DashboardOverview() {
     });
   }, [einkaufsliste]);
 
-  // Auto-select newest list on load
   useEffect(() => {
     if (sortedEinkaufsliste.length > 0 && selectedListeId === null) {
       setSelectedListeId(sortedEinkaufsliste[0].record_id);
@@ -58,7 +65,6 @@ export default function DashboardOverview() {
   const totalPages = Math.ceil(sortedEinkaufsliste.length / LISTS_PER_PAGE);
   const pagedEinkaufsliste = sortedEinkaufsliste.slice(listePage * LISTS_PER_PAGE, (listePage + 1) * LISTS_PER_PAGE);
 
-  // Derived data – computed after hooks
   const selectedListe = useMemo(
     () => einkaufsliste.find(l => l.record_id === selectedListeId) ?? null,
     [einkaufsliste, selectedListeId]
@@ -71,11 +77,9 @@ export default function DashboardOverview() {
       if (listeId !== selectedListeId) return false;
       if (!selectedPersonId) return true;
       const personId = extractRecordId(a.fields.person_ref);
-      // Show articles assigned to selected person OR unassigned articles
       return !personId || personId === selectedPersonId;
     });
   }, [enrichedEinkaufsartikel, selectedListeId, selectedPersonId]);
-
 
   if (loading) return <DashboardSkeleton />;
   if (error) return <DashboardError error={error} onRetry={fetchAll} />;
@@ -92,6 +96,26 @@ export default function DashboardOverview() {
     if (!deleteArtikelTarget) return;
     await LivingAppsService.deleteEinkaufsartikelEntry(deleteArtikelTarget.record_id);
     setDeleteArtikelTarget(null);
+    fetchAll();
+  };
+
+  // Assign the currently filtered person to an article
+  const handleAssignPerson = async (artikel: EnrichedEinkaufsartikel, personId: string) => {
+    await LivingAppsService.updateEinkaufsartikelEntry(artikel.record_id, {
+      person_ref: createRecordUrl(APP_IDS.EINKAEUFER, personId),
+    });
+    fetchAll();
+  };
+
+  // Remove person assignment from an article — must send null (not undefined) so the API actually clears the field
+  const handleUnassignPerson = async (artikel: EnrichedEinkaufsartikel) => {
+    const body = { fields: { person_ref: null } };
+    await fetch(`/api/la/apps/${APP_IDS.EINKAUFSARTIKEL}/records/${artikel.record_id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'omit',
+      body: JSON.stringify(body),
+    });
     fetchAll();
   };
 
@@ -113,11 +137,11 @@ export default function DashboardOverview() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => { setEditListe(null); setListeDialogOpen(true); }}>
-            <Plus size={16} className="shrink-0 mr-1" />
+            <IconPlus size={16} className="shrink-0 mr-1" />
             <span>Neue Liste</span>
           </Button>
           <Button size="sm" onClick={() => { setEditArtikel(null); setArtikelDialogOpen(true); }} disabled={!selectedListeId}>
-            <Plus size={16} className="shrink-0 mr-1" />
+            <IconPlus size={16} className="shrink-0 mr-1" />
             <span>Artikel hinzufügen</span>
           </Button>
         </div>
@@ -126,7 +150,7 @@ export default function DashboardOverview() {
       {/* Main workspace: two-panel layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
 
-        {/* Left panel: list of Einkaufslisten */}
+        {/* Left panel: Einkaufslisten */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="font-semibold text-sm text-foreground">Meine Listen</span>
@@ -135,13 +159,11 @@ export default function DashboardOverview() {
 
           {sortedEinkaufsliste.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-center px-4">
-              <ClipboardList size={36} className="text-muted-foreground/40" />
+              <IconClipboardList size={36} className="text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">Noch keine Einkaufslisten</p>
-              {!selectedPersonId && (
-                <Button size="sm" variant="outline" onClick={() => { setEditListe(null); setListeDialogOpen(true); }}>
-                  <Plus size={14} className="mr-1" />Liste erstellen
-                </Button>
-              )}
+              <Button size="sm" variant="outline" onClick={() => { setEditListe(null); setListeDialogOpen(true); }}>
+                <IconPlus size={14} className="mr-1" />Liste erstellen
+              </Button>
             </div>
           ) : (
             <>
@@ -161,7 +183,7 @@ export default function DashboardOverview() {
                       }`}
                     >
                       <div className="mt-0.5 shrink-0">
-                        <ShoppingCart size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
+                        <IconShoppingCart size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div
@@ -174,7 +196,7 @@ export default function DashboardOverview() {
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {liste.fields.datum && (
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <CalendarDays size={11} />
+                              <IconCalendar size={11} />
                               {formatDate(liste.fields.datum)}
                             </span>
                           )}
@@ -194,7 +216,6 @@ export default function DashboardOverview() {
                 })}
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="px-4 py-2 border-t border-border flex items-center justify-between gap-2 bg-muted/20">
                   <button
@@ -204,9 +225,7 @@ export default function DashboardOverview() {
                   >
                     ‹ Zurück
                   </button>
-                  <span className="text-xs text-muted-foreground">
-                    {listePage + 1} / {totalPages}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{listePage + 1} / {totalPages}</span>
                   <button
                     onClick={() => setListePage(p => Math.min(totalPages - 1, p + 1))}
                     disabled={listePage >= totalPages - 1}
@@ -224,7 +243,7 @@ export default function DashboardOverview() {
         <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col">
           {!selectedListe ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
-              <ListChecks size={48} className="text-muted-foreground/30" />
+              <IconListCheck size={48} className="text-muted-foreground/30" />
               <div>
                 <p className="font-medium text-foreground">Liste auswählen</p>
                 <p className="text-sm text-muted-foreground mt-1">Wähle links eine Einkaufsliste, um die Artikel zu sehen und zu verwalten.</p>
@@ -242,12 +261,12 @@ export default function DashboardOverview() {
                 <div className="flex items-center gap-2 shrink-0">
                   {selectedListe.fields.datum && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <CalendarDays size={12} />
+                      <IconCalendar size={12} />
                       {formatDate(selectedListe.fields.datum)}
                     </span>
                   )}
                   <Button size="sm" onClick={() => { setEditArtikel(null); setArtikelDialogOpen(true); }}>
-                    <Plus size={14} className="mr-1 shrink-0" />Artikel
+                    <IconPlus size={14} className="mr-1 shrink-0" />Artikel
                   </Button>
                 </div>
               </div>
@@ -289,24 +308,23 @@ export default function DashboardOverview() {
                   className="w-6 h-6 rounded-full border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors flex items-center justify-center shrink-0"
                   title="Neue Person anlegen"
                 >
-                  <Plus size={12} className="shrink-0" />
+                  <IconPlus size={12} className="shrink-0" />
                 </button>
               </div>
 
               {artikelForSelectedListe.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
-                  <ShoppingCart size={40} className="text-muted-foreground/30" />
+                  <IconShoppingCart size={40} className="text-muted-foreground/30" />
                   <div>
                     <p className="font-medium text-foreground">Keine Artikel</p>
                     <p className="text-sm text-muted-foreground mt-1">Diese Liste ist noch leer. Füge Artikel hinzu.</p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => { setEditArtikel(null); setArtikelDialogOpen(true); }}>
-                    <Plus size={14} className="mr-1" />Ersten Artikel hinzufügen
+                    <IconPlus size={14} className="mr-1" />Ersten Artikel hinzufügen
                   </Button>
                 </div>
               ) : (
                 <div className="overflow-y-auto flex-1">
-                  {/* Group: open items */}
                   {artikelForSelectedListe.filter(a => !a.fields.erledigt).length > 0 && (
                     <div>
                       <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/30">
@@ -317,14 +335,16 @@ export default function DashboardOverview() {
                           key={artikel.record_id}
                           artikel={artikel}
                           einkaeuferMap={einkaeuferMap}
+                          selectedPersonId={selectedPersonId}
                           onToggle={() => handleToggleErledigt(artikel)}
                           onEdit={() => { setEditArtikel(artikel); setArtikelDialogOpen(true); }}
+                          onAssignPerson={(personId) => handleAssignPerson(artikel, personId)}
+                          onUnassignPerson={() => handleUnassignPerson(artikel)}
                         />
                       ))}
                     </div>
                   )}
 
-                  {/* Group: done items */}
                   {artikelForSelectedListe.filter(a => a.fields.erledigt).length > 0 && (
                     <div>
                       <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/30">
@@ -335,8 +355,11 @@ export default function DashboardOverview() {
                           key={artikel.record_id}
                           artikel={artikel}
                           einkaeuferMap={einkaeuferMap}
+                          selectedPersonId={selectedPersonId}
                           onToggle={() => handleToggleErledigt(artikel)}
                           onEdit={() => { setEditArtikel(artikel); setArtikelDialogOpen(true); }}
+                          onAssignPerson={(personId) => handleAssignPerson(artikel, personId)}
+                          onUnassignPerson={() => handleUnassignPerson(artikel)}
                         />
                       ))}
                     </div>
@@ -344,7 +367,6 @@ export default function DashboardOverview() {
                 </div>
               )}
 
-              {/* Progress bar */}
               {artikelForSelectedListe.length > 0 && (
                 <div className="px-4 py-3 border-t border-border bg-muted/20">
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
@@ -372,7 +394,6 @@ export default function DashboardOverview() {
           if (editArtikel) {
             await LivingAppsService.updateEinkaufsartikelEntry(editArtikel.record_id, fields);
           } else {
-            // Pre-fill selected list if one is chosen
             const enrichedFields = selectedListeId
               ? { ...fields, liste_ref: createRecordUrl(APP_IDS.EINKAUFSLISTE, selectedListeId) }
               : fields;
@@ -380,9 +401,7 @@ export default function DashboardOverview() {
           }
           fetchAll();
         }}
-        defaultValues={editArtikel ? {
-          ...editArtikel.fields,
-        } : selectedListeId ? {
+        defaultValues={editArtikel ? { ...editArtikel.fields } : selectedListeId ? {
           liste_ref: createRecordUrl(APP_IDS.EINKAUFSLISTE, selectedListeId),
         } : undefined}
         einkaufslisteList={einkaufsliste}
@@ -434,42 +453,50 @@ export default function DashboardOverview() {
   );
 }
 
+// ArtikelRow: shows Hand icon (assign) or X icon (unassign) when a person filter is active
 function ArtikelRow({
   artikel,
   einkaeuferMap,
+  selectedPersonId,
   onToggle,
   onEdit,
+  onAssignPerson,
+  onUnassignPerson,
 }: {
   artikel: EnrichedEinkaufsartikel;
   einkaeuferMap: Map<string, Einkaeufer>;
+  selectedPersonId: string | null;
   onToggle: () => void;
   onEdit: () => void;
+  onAssignPerson: (personId: string) => void;
+  onUnassignPerson: () => void;
 }) {
   const isDone = !!artikel.fields.erledigt;
+  const assignedPersonId = extractRecordId(artikel.fields.person_ref);
 
   const personKuerzel = (() => {
-    if (!artikel.fields.person_ref) return '';
-    const id = extractRecordId(artikel.fields.person_ref);
-    if (!id) return '';
-    const person = einkaeuferMap.get(id);
+    if (!assignedPersonId) return '';
+    const person = einkaeuferMap.get(assignedPersonId);
     return person?.fields.kuerzel || '';
   })();
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-accent/30 transition-colors group ${isDone ? 'opacity-60' : ''}`}>
+    <div className={`flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-accent/30 transition-colors ${isDone ? 'opacity-60' : ''}`}>
+      {/* Checkbox toggle */}
       <button
         onClick={onToggle}
         className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
         title={isDone ? 'Als offen markieren' : 'Als erledigt markieren'}
       >
         {isDone
-          ? <div className="w-5 h-5 rounded-sm bg-primary flex items-center justify-center shrink-0">
+          ? <div className="w-5 h-5 rounded-sm bg-primary flex items-center justify-center">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-          : <div className="w-5 h-5 rounded-sm border-2 border-muted-foreground/40 shrink-0" />
+          : <div className="w-5 h-5 rounded-sm border-2 border-muted-foreground/40" />
         }
       </button>
 
+      {/* Article name + quantity */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <button
           onClick={onEdit}
@@ -481,12 +508,34 @@ function ArtikelRow({
           <span className="text-xs text-muted-foreground shrink-0">{artikel.fields.menge}</span>
         )}
       </div>
+
+      {/* Person kürzel badge */}
       {personKuerzel && (
-        <span className="text-xs text-muted-foreground shrink-0 font-mono font-semibold ml-auto">
+        <span className="text-xs text-muted-foreground shrink-0 font-mono font-semibold">
           {personKuerzel}
         </span>
       )}
 
+      {/* Person filter active: show Hand (no person) or X (has person) */}
+      {selectedPersonId !== null && (
+        assignedPersonId === null ? (
+          <button
+            onClick={() => onAssignPerson(selectedPersonId)}
+            className="shrink-0 p-1 rounded text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
+            title="Gefilterte Person zuordnen"
+          >
+            <IconHandFinger size={16} />
+          </button>
+        ) : (
+          <button
+            onClick={onUnassignPerson}
+            className="shrink-0 p-1 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Personenzuordnung entfernen"
+          >
+            <IconX size={16} />
+          </button>
+        )
+      )}
     </div>
   );
 }
@@ -510,7 +559,7 @@ function DashboardError({ error, onRetry }: { error: Error; onRetry: () => void 
   return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
-        <AlertCircle size={22} className="text-destructive" />
+        <IconAlertCircle size={22} className="text-destructive" />
       </div>
       <div className="text-center">
         <h3 className="font-semibold text-foreground mb-1">Fehler beim Laden</h3>
