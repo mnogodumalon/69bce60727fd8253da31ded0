@@ -51,5 +51,26 @@
   "clientDataCache": {
     "data": null,
     "timestamp": 1773992234678
+  },
+  "projects": {
+    "/home/user/app": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "DashboardOverview.tsx",
+        "claude_agent.py",
+        "CLAUDE.md",
+        "index.html",
+        "SKILL.md"
+      ],
+      "exampleFilesGeneratedAt": 1774080456889
+    }
   }
 }
